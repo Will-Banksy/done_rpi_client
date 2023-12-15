@@ -1,17 +1,48 @@
-pub fn init_hardware() {
-	// TODO
+pub mod gpio;
+
+use crate::config::Env;
+
+pub struct HardwareSystem {
 }
 
-pub fn display_task_on_oled(task: &str) {
-	// TODO
-}
+// maybe just put the hardwaresystem in a rwlock
+unsafe impl Sync for HardwareSystem {}
+unsafe impl Send for HardwareSystem {}
 
-pub fn clear_oled() {
-	// TODO
-}
+impl HardwareSystem {
+	pub fn init(&self, env: &Env) {
+		todo!()
+	}
 
-pub fn connection_led_toggle(on: bool) {
-	// TODO
-}
+	pub fn deinit(&self) {
+		todo!()
+	}
 
-// TODO: Buttons/decide how they are going to work
+	pub fn display_text(&self, task: &str) {
+		todo!()
+	}
+
+	pub fn clear_oled(&self) {
+		todo!()
+	}
+
+	pub fn connection_led_toggle(&self, on: bool) {
+		todo!()
+	}
+
+	pub fn get_reload_btn_state(&self) -> bool {
+		todo!()
+	}
+
+	pub fn get_scrollr_btn_state(&self) -> bool {
+		todo!()
+	}
+
+	pub fn get_scrolll_btn_state(&self) -> bool {
+		todo!()
+	}
+
+	pub fn get_delete_btn_state(&self) -> bool {
+		todo!()
+	}
+}

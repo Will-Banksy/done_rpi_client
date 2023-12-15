@@ -1,9 +1,14 @@
+use std::io;
+
 #[derive(Debug)]
 pub enum Error {
 	ReqwestError(reqwest::Error),
 	JsonDeserializationError(serde_json::Error),
 	TomlDeserializationError(toml::de::Error),
-	UnsuccessfulApiRequestError
+	UnsuccessfulApiRequestError,
+	IoError(io::Error),
+	Errno(i32),
+	InvalidArgument(String)
 }
 
 impl From<reqwest::Error> for Error {
@@ -21,5 +26,11 @@ impl From<serde_json::Error> for Error {
 impl From<toml::de::Error> for Error {
 	fn from(value: toml::de::Error) -> Self {
 		Error::TomlDeserializationError(value)
+	}
+}
+
+impl From<io::Error> for Error {
+	fn from(value: io::Error) -> Self {
+		Error::IoError(value)
 	}
 }
