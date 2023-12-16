@@ -3,10 +3,10 @@ mod api;
 mod config;
 mod error;
 
-use std::{sync::{Arc, mpsc::{self, Sender}}, thread, time::Duration};
+use std::{sync::{Arc, mpsc::{self, Sender}, RwLock}, thread, time::Duration};
 
 use config::Env;
-use hardware::{HardwareSystem, gpio::Gpio};
+use hardware::HardwareSystem;
 
 use crate::api::Task;
 
@@ -20,63 +20,65 @@ enum ButtonEvent {
 const NO_TASKS_MSG: &'static str = "No tasks";
 
 fn main() {
-	let delay = 1;
+	// let delay = 1;
 
-	println!("INITIALISING GPIO");
+	// println!("INITIALISING GPIO");
 
-	let mut gpio = Gpio::new().unwrap();
+	// let mut gpio = Gpio::new().unwrap();
 
-	thread::sleep(Duration::from_secs(delay));
+	// thread::sleep(Duration::from_secs(delay));
 
-	println!("OPENING PIN 23");
+	// println!("OPENING PIN 23");
 
-	gpio.open_pin(0, 23, true).unwrap();
+	// gpio.open_pin(0, 23, true).unwrap();
 
-	thread::sleep(Duration::from_secs(delay));
+	// thread::sleep(Duration::from_secs(delay));
 
-	println!("WRITING 1 TO PIN 23");
+	// println!("WRITING 1 TO PIN 23");
 
-	gpio.write_pin(0, true).unwrap();
+	// gpio.write_pin(0, true).unwrap();
 
-	thread::sleep(Duration::from_secs(delay));
+	// thread::sleep(Duration::from_secs(delay));
 
-	println!("OPENING PIN 25");
+	// println!("OPENING PIN 25");
 
-	gpio.open_pin(1, 25, true).unwrap();
+	// gpio.open_pin(1, 25, true).unwrap();
 
-	thread::sleep(Duration::from_secs(delay));
+	// thread::sleep(Duration::from_secs(delay));
 
-	println!("WRITING 1 TO PIN 25");
+	// println!("WRITING 1 TO PIN 25");
 
-	gpio.write_pin(1, true).unwrap();
+	// gpio.write_pin(1, true).unwrap();
 
-	thread::sleep(Duration::from_secs(delay));
+	// thread::sleep(Duration::from_secs(delay));
 
-	println!("CLOSING PINS 23 AND 25");
+	// println!("CLOSING PINS 23 AND 25");
 
-	gpio.close_pin(0).unwrap();
-	gpio.close_pin(1).unwrap();
+	// gpio.close_pin(0).unwrap();
+	// gpio.close_pin(1).unwrap();
 
-	println!("OPENING PIN 17");
+	// println!("OPENING PIN 17");
 
-	gpio.open_pin(2, 17, false).unwrap();
+	// gpio.open_pin(2, 17, false).unwrap();
 
-	println!("WAITING FOR INPUT FROM PIN 17");
+	// println!("WAITING FOR INPUT FROM PIN 17");
 
-	while !gpio.read_pin(2).unwrap() {
-		thread::sleep(Duration::from_secs(1))
-	}
+	// while !gpio.read_pin(2).unwrap() {
+	// 	thread::sleep(Duration::from_secs(1))
+	// }
 
-	println!("CLOSING PIN 2");
+	// println!("CLOSING PIN 2");
 
-	gpio.close_pin(2).unwrap();
+	// gpio.close_pin(2).unwrap();
 
-	return;
+	// return;
 
 	let env = Env::from_file().expect("[CRITICAL]: No env config detected, cannot run");
 
-	let hardware_system = Arc::new(HardwareSystem {});
-	hardware_system.init(&env);
+	let hardware_system = Arc::new(RwLock::new(HardwareSystem::new()));
+	{
+		hardware_system.write().unwrap().init(&env);
+	}
 
 	let (btn_evt_sender, btn_evt_reciever) = mpsc::channel::<ButtonEvent>();
 
@@ -107,14 +109,15 @@ fn main() {
 
 							curr_task_idx = 0;
 							if held_tasks.len() >= 1 {
-								hardware_system.display_text(&held_tasks[curr_task_idx].task);
+								hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
 							} else {
-								hardware_system.display_text(NO_TASKS_MSG);
+								hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
 							}
+							hardware_system.write().unwrap().connection_led_toggle(true);
 						}
 						Err(e) => {
 							eprintln!("[ERROR]: {:?}", e);
-
+							hardware_system.write().unwrap().connection_led_toggle(false);
 						}
 					}
 				} else {
@@ -128,9 +131,9 @@ fn main() {
 				}
 
 				if held_tasks.len() >= 1 {
-					hardware_system.display_text(&held_tasks[curr_task_idx].task);
+					hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
 				} else {
-					hardware_system.display_text(NO_TASKS_MSG);
+					hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
 				}
 			},
 			ButtonEvent::ScrollLeft => {
@@ -144,9 +147,9 @@ fn main() {
 				}
 
 				if held_tasks.len() >= 1 {
-					hardware_system.display_text(&held_tasks[curr_task_idx].task);
+					hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
 				} else {
-					hardware_system.display_text(NO_TASKS_MSG);
+					hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
 				}
 			},
 			ButtonEvent::TaskDone => {
@@ -164,9 +167,9 @@ fn main() {
 					}
 
 					if held_tasks.len() >= 1 {
-						hardware_system.display_text(&held_tasks[curr_task_idx].task);
+						hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
 					} else {
-						hardware_system.display_text(NO_TASKS_MSG);
+						hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
 					}
 				} else {
 					eprintln!("[ERROR]: Nonexistent or invalid env");
@@ -178,7 +181,7 @@ fn main() {
 	btn_poll_thread_handle.join();
 }
 
-fn poll_btns(hardware_system: Arc<HardwareSystem>, btn_evt_sender: Sender<ButtonEvent>) {
+fn poll_btns(hardware_system: Arc<RwLock<HardwareSystem>>, btn_evt_sender: Sender<ButtonEvent>) {
 	let (
 		mut reload_debounce,
 		mut scrollr_debounce,
@@ -193,34 +196,42 @@ fn poll_btns(hardware_system: Arc<HardwareSystem>, btn_evt_sender: Sender<Button
 
 	loop {
 		thread::sleep(Duration::from_millis(100));
-		let (
-			reload,
-			scrollr,
-			scrolll,
-			delete
-		) = (
-			hardware_system.get_reload_btn_state(),
-			hardware_system.get_scrollr_btn_state(),
-			hardware_system.get_scrolll_btn_state(),
-			hardware_system.get_delete_btn_state()
-		);
+
+		let reload = {
+			hardware_system.write().unwrap().get_reload_btn_state()
+		};
+		let scrollr = {
+			hardware_system.write().unwrap().get_scrollr_btn_state()
+		};
+		let scrolll = {
+			hardware_system.write().unwrap().get_scrolll_btn_state()
+		};
+		let delete = {
+			hardware_system.write().unwrap().get_delete_btn_state()
+		};
+
+		// println!("Done polling buttons...");
 
 		if reload && !reload_debounce {
+			println!("Sending button press: Reload");
 			btn_evt_sender.send(ButtonEvent::ReloadTasks).unwrap();
 		}
 		reload_debounce = reload;
 
 		if scrollr && !scrollr_debounce {
+			println!("Sending button press: Scroll Right");
 			btn_evt_sender.send(ButtonEvent::ScrollRight).unwrap();
 		}
 		scrollr_debounce = scrollr;
 
 		if scrolll && !scrolll_debounce {
+			println!("Sending button press: Scroll Left");
 			btn_evt_sender.send(ButtonEvent::ScrollLeft).unwrap();
 		}
 		scrolll_debounce = scrolll;
 
 		if delete && !delete_debounce {
+			println!("Sending button press: Done");
 			btn_evt_sender.send(ButtonEvent::TaskDone).unwrap();
 		}
 		delete_debounce = delete;

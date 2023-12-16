@@ -98,7 +98,7 @@ impl Gpio {
 			}
 		}
 
-		println!("Read pin value: {}", c_gpio_pin.value);
+		// println!("Read pin value: {}", c_gpio_pin.value);
 
 		Ok(u8_to_bool(c_gpio_pin.value))
 	}
