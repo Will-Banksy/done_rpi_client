@@ -11,3 +11,6 @@ toml = "0.8.8"
 serde_json = "1.0.108"
 serde = { version = "1.0.193", features = [ "derive" ] }
 libc = "0.2.151"
+ssd1306 = "0.8.4"
+rppal = { version = "0.16.0", features = [ "hal" ] }
+embedded-graphics = "0.8.1"

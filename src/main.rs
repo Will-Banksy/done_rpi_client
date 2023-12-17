@@ -3,7 +3,7 @@ mod api;
 mod config;
 mod error;
 
-use std::{sync::{Arc, mpsc::{self, Sender}, RwLock}, thread, time::Duration};
+use std::{sync::{Arc, mpsc::{self, Sender}, Mutex}, thread, time::Duration};
 
 use config::Env;
 use hardware::HardwareSystem;
@@ -20,64 +20,11 @@ enum ButtonEvent {
 const NO_TASKS_MSG: &'static str = "No tasks";
 
 fn main() {
-	// let delay = 1;
-
-	// println!("INITIALISING GPIO");
-
-	// let mut gpio = Gpio::new().unwrap();
-
-	// thread::sleep(Duration::from_secs(delay));
-
-	// println!("OPENING PIN 23");
-
-	// gpio.open_pin(0, 23, true).unwrap();
-
-	// thread::sleep(Duration::from_secs(delay));
-
-	// println!("WRITING 1 TO PIN 23");
-
-	// gpio.write_pin(0, true).unwrap();
-
-	// thread::sleep(Duration::from_secs(delay));
-
-	// println!("OPENING PIN 25");
-
-	// gpio.open_pin(1, 25, true).unwrap();
-
-	// thread::sleep(Duration::from_secs(delay));
-
-	// println!("WRITING 1 TO PIN 25");
-
-	// gpio.write_pin(1, true).unwrap();
-
-	// thread::sleep(Duration::from_secs(delay));
-
-	// println!("CLOSING PINS 23 AND 25");
-
-	// gpio.close_pin(0).unwrap();
-	// gpio.close_pin(1).unwrap();
-
-	// println!("OPENING PIN 17");
-
-	// gpio.open_pin(2, 17, false).unwrap();
-
-	// println!("WAITING FOR INPUT FROM PIN 17");
-
-	// while !gpio.read_pin(2).unwrap() {
-	// 	thread::sleep(Duration::from_secs(1))
-	// }
-
-	// println!("CLOSING PIN 2");
-
-	// gpio.close_pin(2).unwrap();
-
-	// return;
-
 	let env = Env::from_file().expect("[CRITICAL]: No env config detected, cannot run");
 
-	let hardware_system = Arc::new(RwLock::new(HardwareSystem::new()));
+	let hardware_system = Arc::new(Mutex::new(HardwareSystem::new()));
 	{
-		hardware_system.write().unwrap().init(&env);
+		hardware_system.lock().unwrap().init(&env);
 	}
 
 	let (btn_evt_sender, btn_evt_reciever) = mpsc::channel::<ButtonEvent>();
@@ -109,15 +56,15 @@ fn main() {
 
 							curr_task_idx = 0;
 							if held_tasks.len() >= 1 {
-								hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
+								hardware_system.lock().unwrap().display_text(&held_tasks[curr_task_idx].task);
 							} else {
-								hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
+								hardware_system.lock().unwrap().display_text(NO_TASKS_MSG);
 							}
-							hardware_system.write().unwrap().connection_led_toggle(true);
+							hardware_system.lock().unwrap().connection_led_toggle(true);
 						}
 						Err(e) => {
 							eprintln!("[ERROR]: {:?}", e);
-							hardware_system.write().unwrap().connection_led_toggle(false);
+							hardware_system.lock().unwrap().connection_led_toggle(false);
 						}
 					}
 				} else {
@@ -131,9 +78,9 @@ fn main() {
 				}
 
 				if held_tasks.len() >= 1 {
-					hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
+					hardware_system.lock().unwrap().display_text(&held_tasks[curr_task_idx].task);
 				} else {
-					hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
+					hardware_system.lock().unwrap().display_text(NO_TASKS_MSG);
 				}
 			},
 			ButtonEvent::ScrollLeft => {
@@ -147,32 +94,34 @@ fn main() {
 				}
 
 				if held_tasks.len() >= 1 {
-					hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
+					hardware_system.lock().unwrap().display_text(&held_tasks[curr_task_idx].task);
 				} else {
-					hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
+					hardware_system.lock().unwrap().display_text(NO_TASKS_MSG);
 				}
 			},
 			ButtonEvent::TaskDone => {
-				// Reload env (might have changed)
-				let env = Env::from_file();
+				if held_tasks.len() != 0 {
+					// Reload env (might have changed)
+					let env = Env::from_file();
 
-				if let Some(env) = env {
-					let res = api::delete_user_tasks(&env, &[held_tasks[curr_task_idx].user_task_id]);
-					if let Err(e) = res {
-						eprintln!("[ERROR]: {:?}", e);
-					}
-					held_tasks.remove(curr_task_idx);
-					if curr_task_idx >= held_tasks.len() && curr_task_idx != 0 {
-						curr_task_idx -= 1;
-					}
+					if let Some(env) = env {
+						let res = api::delete_user_tasks(&env, &[held_tasks[curr_task_idx].user_task_id]);
+						if let Err(e) = res {
+							eprintln!("[ERROR]: {:?}", e);
+						}
+						held_tasks.remove(curr_task_idx);
+						if curr_task_idx >= held_tasks.len() && curr_task_idx != 0 {
+							curr_task_idx -= 1;
+						}
 
-					if held_tasks.len() >= 1 {
-						hardware_system.write().unwrap().display_text(&held_tasks[curr_task_idx].task);
+						if held_tasks.len() >= 1 {
+							hardware_system.lock().unwrap().display_text(&held_tasks[curr_task_idx].task);
+						} else {
+							hardware_system.lock().unwrap().display_text(NO_TASKS_MSG);
+						}
 					} else {
-						hardware_system.write().unwrap().display_text(NO_TASKS_MSG);
+						eprintln!("[ERROR]: Nonexistent or invalid env");
 					}
-				} else {
-					eprintln!("[ERROR]: Nonexistent or invalid env");
 				}
 			},
 		}
@@ -181,7 +130,7 @@ fn main() {
 	btn_poll_thread_handle.join();
 }
 
-fn poll_btns(hardware_system: Arc<RwLock<HardwareSystem>>, btn_evt_sender: Sender<ButtonEvent>) {
+fn poll_btns(hardware_system: Arc<Mutex<HardwareSystem>>, btn_evt_sender: Sender<ButtonEvent>) {
 	let (
 		mut reload_debounce,
 		mut scrollr_debounce,
@@ -198,16 +147,16 @@ fn poll_btns(hardware_system: Arc<RwLock<HardwareSystem>>, btn_evt_sender: Sende
 		thread::sleep(Duration::from_millis(100));
 
 		let reload = {
-			hardware_system.write().unwrap().get_reload_btn_state()
+			hardware_system.lock().unwrap().get_reload_btn_state()
 		};
 		let scrollr = {
-			hardware_system.write().unwrap().get_scrollr_btn_state()
+			hardware_system.lock().unwrap().get_scrollr_btn_state()
 		};
 		let scrolll = {
-			hardware_system.write().unwrap().get_scrolll_btn_state()
+			hardware_system.lock().unwrap().get_scrolll_btn_state()
 		};
 		let delete = {
-			hardware_system.write().unwrap().get_delete_btn_state()
+			hardware_system.lock().unwrap().get_delete_btn_state()
 		};
 
 		// println!("Done polling buttons...");
