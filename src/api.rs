@@ -56,6 +56,7 @@ pub fn delete_user_tasks(env: &Env, user_task_ids: &[i32]) -> Result<(), Error> 
 }
 
 /// Sends a (blocking) API request to the server address as specified by the env to add/set tasks
+#[allow(unused)]
 pub fn set_user_tasks(env: &Env, tasks: &[Task]) -> Result<(), Error> {
 	let client = reqwest::blocking::Client::new();
 	let body = serde_json::to_string(tasks).map_err(|e| Error::from(e))?;

@@ -2,7 +2,7 @@ pub mod gpio;
 
 use embedded_graphics::{text::{Text, Baseline}, geometry::Point, mono_font::{MonoTextStyleBuilder, ascii::FONT_6X10}, pixelcolor::BinaryColor, Drawable};
 use rppal::i2c::I2c;
-use ssd1306::{size::{self, DisplaySize128x64}, rotation, Ssd1306, prelude::I2CInterface, mode::{BufferedGraphicsMode, DisplayConfig}};
+use ssd1306::{size::DisplaySize128x64, rotation, Ssd1306, prelude::I2CInterface, mode::{BufferedGraphicsMode, DisplayConfig}};
 
 use crate::config::Env;
 

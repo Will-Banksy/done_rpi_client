@@ -2,6 +2,7 @@ use std::{fs::{File, OpenOptions}, collections::HashMap, os::fd::AsRawFd};
 
 use crate::error::Error;
 
+#[allow(unused)]
 const GPIODRV_IOCTL_NOTHING: u32 = 50;
 const GPIODRV_IOCTL_WRITEPIN: u32 = 51;
 const GPIODRV_IOCTL_READPIN: u32 = 52;

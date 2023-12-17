@@ -30,7 +30,7 @@ fn main() {
 	let (btn_evt_sender, btn_evt_reciever) = mpsc::channel::<ButtonEvent>();
 
 	let hardware_system_clone = Arc::clone(&hardware_system);
-	let btn_poll_thread_handle = thread::spawn(move || {
+	let _btn_poll_thread_handle = thread::spawn(move || {
 		btn_evt_sender.send(ButtonEvent::ReloadTasks).unwrap();
 		poll_btns(hardware_system_clone, btn_evt_sender);
 	});
@@ -127,7 +127,10 @@ fn main() {
 		}
 	}
 
-	btn_poll_thread_handle.join();
+	#[allow(unreachable_code)]
+	{
+		_btn_poll_thread_handle.join().unwrap();
+	}
 }
 
 fn poll_btns(hardware_system: Arc<Mutex<HardwareSystem>>, btn_evt_sender: Sender<ButtonEvent>) {
